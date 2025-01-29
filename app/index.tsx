@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { readRemoteFile } from 'react-papaparse';
-import { Row, Col, Button, Modal, Form, Input, FormProps, ConfigProvider, Select, Segmented, Flex, DatePicker, theme, Layout } from 'antd'
-import TargetPlot from "@/components/ui/target-plot";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { Modal, Form, Input, FormProps, ConfigProvider, Select, Segmented, Flex, DatePicker, theme, Layout, List, FloatButton } from 'antd'
 import { library } from '@fortawesome/fontawesome-svg-core'
 import { faPlus, faEllipsisVertical } from '@fortawesome/free-solid-svg-icons'
 import ru_RU from 'antd/locale/ru_RU'
 import dayjs, { Dayjs } from "dayjs";
 import { Content, Header } from "antd/lib/layout/layout";
-import { MoonOutlined, SunOutlined } from "@ant-design/icons";
+import { MoonOutlined, PlusOutlined, SunOutlined } from "@ant-design/icons";
+import TargetPlot from "@/components/ui/target-plot";
 
 library.add(faPlus, faEllipsisVertical)
 
@@ -27,7 +26,7 @@ class DataRow {
 class Target {
   name: string;
   countries: string[]
-  data: DataRow[];
+  data?: DataRow[];
 
   constructor(name: string, data: DataRow[], countries: string[]) {
     this.name = name;
@@ -57,7 +56,8 @@ enum Theme {
   DARK
 }
 
-export default function HomeScreen() {
+
+export default function Index() {
   const [ targets, setTargets] = useState<Target[]>([])
   const [ isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [ manuallyChanged, setManuallyChanged ] = useState<boolean>(false);
@@ -67,6 +67,7 @@ export default function HomeScreen() {
   const [ userTheme, setUserTheme ] = useState<Theme>(Theme.LIGHT)
 
   useEffect(() => {
+    setTargets(targets.map(target => ({...target, data: undefined})));
     Promise.all(targets.map(target => (getData(target.countries).then(data => ({...target, data})))))
       .then(newTargets => setTargets(newTargets));
   }, [type, interval]);
@@ -87,8 +88,10 @@ export default function HomeScreen() {
   const onFinish: FormProps<FieldType>['onFinish'] = async (values) => {
     onModalCancel();
     let countries = values.targets.map(target => target.value);
+    let target: Target = {name: values.name, countries}
+    setTargets([...targets, target]);
     let data = await getData(countries);
-    setTargets([...targets, {name: values.name, data, countries}]);
+    setTargets([...targets.filter(t => t != target), {name: values.name, data, countries}]);
   };
 
   function fillName() {
@@ -188,21 +191,28 @@ export default function HomeScreen() {
             </Flex>
           </Flex>
         </Header>
-        <Content style={{overflowY: 'scroll'}}>
-        <Row gutter={[16, 16]} style={{margin: 5}}>
-          {
-            targets.map((target, i) => (
-              <Col key={i} xxl={8} lg={12} md={24}>
-                {<TargetPlot stats={target.data} targetName={target.name} onDelete={() => deleteTarget(i)}></TargetPlot>}
-              </Col>
-            ))
-          }
-          <Col xxl={8} lg={12} md={24} style={{width: '100%'}}>
-            <Button color="primary" variant="dashed" style={{height: '100%', width: '100%'}} onClick={onAddButtonClick}>
-              <FontAwesomeIcon style={{width: "100%", height: "100%", maxWidth: '400px', maxHeight: '400px'}} icon={"plus"}></FontAwesomeIcon> 
-            </Button>
-          </Col>
-        </Row>
+        <Content style={{overflowY: 'scroll', overflowX: 'hidden', padding: 10}}>
+          <List grid={{
+            gutter: 16,
+            md: 1,
+            lg: 2,
+            xxl: 3,
+          }}
+            dataSource={targets}
+            renderItem={(target, i) => (
+              <List.Item style={{height: '100%'}}>
+                <TargetPlot stats={target.data} targetName={target.name} onDelete={() => deleteTarget(i)}></TargetPlot>
+              </List.Item>
+          )}
+          />
+          <FloatButton
+            onClick={onAddButtonClick}
+            icon={<PlusOutlined />}
+            type="primary"
+            style={{
+              insetInlineEnd: 54,
+            }}
+          />
         <Modal title="Новый объект интереса" 
           open={isModalOpen} destroyOnClose
           onOk={onModalOk} onCancel={onModalCancel} 
@@ -247,3 +257,4 @@ export default function HomeScreen() {
     </ConfigProvider>
   );
 }
+                                                              

@@ -20,6 +20,7 @@ export default function TargetPlot({stats, targetName, onDelete} : any) {
         padding: 'auto',
         xField: 'date',
         yField: 'value',
+        loading: stats == undefined,
         slider: {
             x: {
                 values: [0.8, 1],
@@ -38,7 +39,7 @@ export default function TargetPlot({stats, targetName, onDelete} : any) {
     function groupData(data: any[]) {
         let dateCount = new Map<string, number>();
 
-        data.forEach(row => {
+        data?.forEach(row => {
             dateCount.set(row.date, (dateCount.get(row.date) ?? 0) + row.value)
         })
 
@@ -78,14 +79,13 @@ export default function TargetPlot({stats, targetName, onDelete} : any) {
     ]
 
     return (
-        <>  
-            <Card title={targetName} bordered={false} hoverable extra={
-                <Dropdown menu={{ items: menuItems }} placement="bottomLeft">
-                            <Button type="text"><FontAwesomeIcon icon={"ellipsis-vertical"}/></Button>
-                        </Dropdown>
-                } onDoubleClick={() => setIsModalOpen(true)} style={{height: '100%'}}>
-                <Area {...config} />
-            </Card>
+        <Card title={targetName} bordered={false} hoverable extra={
+            <Dropdown menu={{ items: menuItems }} placement="bottomLeft">
+                <Button type="text"><FontAwesomeIcon icon={"ellipsis-vertical"}/></Button>
+            </Dropdown>
+            } onDoubleClick={() => setIsModalOpen(true)} style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+            <Area {...config} />
+
             <Modal title={targetName} open={isModalOpen} width="100%" onClose={() => setIsModalOpen(false)} onCancel={() => setIsModalOpen(false)} destroyOnClose>
                 <Flex justify="end">
                     <Segmented size="large"
@@ -99,6 +99,6 @@ export default function TargetPlot({stats, targetName, onDelete} : any) {
                 {type == Type.LINE && <Area {...config} />}
                 {type == Type.HEAT && <Heatmap {...heatConfig} />}
             </Modal>
-        </>
+        </Card>
     );
 }
