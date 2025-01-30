@@ -84,7 +84,7 @@ export default function TargetPlot({stats, targetName, onDelete} : any) {
             <Dropdown menu={{ items: menuItems }} placement="bottomLeft">
                 <Button type="text"><FontAwesomeIcon icon={"ellipsis-vertical"}/></Button>
             </Dropdown>
-            } onDoubleClick={() => setIsModalOpen(true)} style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+            } onDoubleClick={() => setIsModalOpen(true)} style={{ height: "100%", width: "100%", display: "flex", flexDirection: "column" }}>
             <Area {...config} />
 
             <Modal title={targetName} open={isModalOpen} width="100%" onClose={() => setIsModalOpen(false)} onCancel={() => setIsModalOpen(false)} destroyOnClose>

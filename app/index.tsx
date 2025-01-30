@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { readRemoteFile } from 'react-papaparse';
-import { Modal, Form, Input, FormProps, ConfigProvider, Select, Segmented, Flex, DatePicker, theme, Layout, List, FloatButton } from 'antd'
+import { Modal, Form, Input, FormProps, ConfigProvider, Select, Segmented, Flex, DatePicker, theme, Layout, List, FloatButton, Col, Row } from 'antd'
 import { library } from '@fortawesome/fontawesome-svg-core'
 import { faPlus, faEllipsisVertical } from '@fortawesome/free-solid-svg-icons'
 import ru_RU from 'antd/locale/ru_RU'
@@ -192,19 +192,15 @@ export default function Index() {
           </Flex>
         </Header>
         <Content style={{overflowY: 'scroll', overflowX: 'hidden', padding: 10}}>
-          <List grid={{
-            gutter: 16,
-            md: 1,
-            lg: 2,
-            xxl: 3,
-          }}
-            dataSource={targets}
-            renderItem={(target, i) => (
-              <List.Item style={{height: '100%'}}>
-                <TargetPlot stats={target.data} targetName={target.name} onDelete={() => deleteTarget(i)}></TargetPlot>
-              </List.Item>
-          )}
-          />
+          <Row gutter={[16, 16]}>
+            {
+              targets.map((target, i) => (
+                <Col key={i} md={24} lg={12} xxl={8} style={{width: '100%'}}>
+                  <TargetPlot stats={target.data} targetName={target.name} onDelete={() => deleteTarget(i)}></TargetPlot>
+                </Col>
+              ))
+            }
+          </Row>
           <FloatButton
             onClick={onAddButtonClick}
             icon={<PlusOutlined />}
