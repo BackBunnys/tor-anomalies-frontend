@@ -29,6 +29,7 @@ export default function TargetPlot({stats, targetName, onDelete} : any) {
         colorField: 'target',
         animate: { enter: { type: 'growInX' } },
         stack: true,
+        height: 350,
         theme: t?.algorithm == theme.darkAlgorithm ? 'classicDark' : 'classic'
     };
 

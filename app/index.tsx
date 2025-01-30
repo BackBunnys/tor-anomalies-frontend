@@ -119,12 +119,12 @@ export default function Index() {
   }
 
   async function fetchRelay(target: string) {
-    let relayLink = `https://metrics.torproject.org/userstats-relay-country.csv?start=${interval.start?.toISOString()}&end=${interval.end?.toISOString()}&country=${target}`;
+    let relayLink = `http://localhost:8080/v1/metrics/relays?dateInterval.start=${interval.start?.toISOString()}&dateInterval.end=${interval.end?.toISOString()}&countries=${target}`;
     return fetchData(relayLink, target);
   }
 
   async function fetchBridge(target: string) {
-    let bridgeLink = `https://metrics.torproject.org/userstats-bridge-country.csv?start=${interval.start?.toISOString()}&end=${interval.end?.toISOString()}&country=${target}`
+    let bridgeLink = `http://localhost:8080/v1/metrics/bridges?dateInterval.start=${interval.start?.toISOString()}&dateInterval.end=${interval.end?.toISOString()}&countries=${target}`
     return fetchData(bridgeLink, target);
   }
 
