@@ -130,17 +130,17 @@ export default function Index() {
   }
 
   async function fetchRelay(target: string[]) {
-    let relayLink = `http://localhost:8080/v1/metrics/relays?dateInterval.start=${interval.start?.toISOString()}&dateInterval.end=${interval.end?.toISOString()}&countries=${target}`;
+    let relayLink = `http://localhost:8080/v1/metrics/relays?from=${interval.start?.toISOString()}&to=${interval.end?.toISOString()}&countries=${target}`;
     return fetchData(relayLink);
   }
 
   async function fetchBridge(target: string[]) {
-    let bridgeLink = `http://localhost:8080/v1/metrics/bridges?dateInterval.start=${interval.start?.toISOString()}&dateInterval.end=${interval.end?.toISOString()}&countries=${target}`
+    let bridgeLink = `http://localhost:8080/v1/metrics/bridges?from=${interval.start?.toISOString()}&to=${interval.end?.toISOString()}&countries=${target}`
     return fetchData(bridgeLink);
   }
 
   async function fetchAll(target: string[]) {
-    let allLink = `http://localhost:8080/v1/metrics/all?dateInterval.start=${interval.start?.toISOString()}&dateInterval.end=${interval.end?.toISOString()}&countries=${target}`
+    let allLink = `http://localhost:8080/v1/metrics/all?from=${interval.start?.toISOString()}&to=${interval.end?.toISOString()}&countries=${target}`
     return fetchData(allLink);
   }
 
