@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { Modal, Form, Input, FormProps, ConfigProvider, Select, Segmented, Flex, DatePicker, theme, Layout, List, FloatButton, Col, Row } from 'antd'
+import { Modal, Form, Input, FormProps, ConfigProvider, Select, Segmented, Flex, DatePicker, theme, Layout, List, FloatButton, Col, Row, Slider, SliderSingleProps, Tooltip } from 'antd'
 import { library } from '@fortawesome/fontawesome-svg-core'
 import { faPlus, faEllipsisVertical } from '@fortawesome/free-solid-svg-icons'
 import ru_RU from 'antd/locale/ru_RU'
 import dayjs, { Dayjs } from "dayjs";
 import { Content, Header } from "antd/lib/layout/layout";
-import { MoonOutlined, PlusOutlined, SunOutlined } from "@ant-design/icons";
+import { InfoCircleOutlined, InfoCircleTwoTone, MoonOutlined, PlusOutlined, SunOutlined } from "@ant-design/icons";
 import TargetPlot from "@/components/ui/target-plot";
+import TelegramLoginButton from "@/components/ui/telegram-login-button";
 
 library.add(faPlus, faEllipsisVertical)
 
@@ -44,9 +45,10 @@ class DataRow {
 
 class Target {
   name: string;
+  sensitivity: Sensitivity = Sensitivity.LOW; 
   countries: string[]
-  data?: DataRow[];
-  anomalies?: Anomaly[];
+  data?: DataRow[] = [];
+  anomalies?: Anomaly[] = [];
 
   constructor(name: string, data: DataRow[], countries: string[]) {
     this.name = name;
@@ -55,9 +57,22 @@ class Target {
   }
 }
 
+enum Sensitivity {
+  LOW='LOW',
+  MEDIUM='MEDIUM',
+  HIGH='HIGH'
+}
+
 type FieldType = {
   targets: {value: string, label: string}[];
   name: string;
+  sensitivity: number;
+};
+
+const marks: SliderSingleProps['marks'] = {
+  1: 'Низкая',
+  2: 'Средняя',
+  3: 'Высокая',
 };
 
 enum Type {
@@ -88,16 +103,12 @@ export default function Index() {
 
   useEffect(() => {
     setTargets(targets.map(target => ({...target, data: undefined})));
-    Promise.all(targets.map(target => (getData(target.countries).then(data => ({...target, data: data.metrics, anomalies: data.anomalies})))))
+    Promise.all(targets.map(target => (getData(target.countries, target.sensitivity).then(data => ({...target, data: data.metrics, anomalies: data.anomalies})))))
       .then(newTargets => setTargets(newTargets));
   }, [type, interval]);
 
   function onAddButtonClick() {
     setIsModalOpen(true);
-  }
-
-  function onModalOk() {
-    form.submit();
   }
 
   function onModalCancel() {
@@ -107,13 +118,20 @@ export default function Index() {
 
   const onFinish: FormProps<FieldType>['onFinish'] = async (values) => {
     onModalCancel();
-    console.log("ON FINISH")
     let countries = values.targets.map(target => target.value);
-    let target: Target = {name: values.name, countries}
+    let target: Target = {name: values.name, countries, sensitivity: getSensitivity(values.sensitivity)}
     setTargets([...targets, target]);
-    let data = await getData(countries);
-    setTargets([...targets.filter(t => t != target), {name: values.name, data: data.metrics, anomalies: data.anomalies, countries}]);
+    let data = await getData(countries, getSensitivity(values.sensitivity));
+    setTargets([...targets.filter(t => t != target), {name: values.name, data: data.metrics, anomalies: data.anomalies, countries, sensitivity: getSensitivity(values.sensitivity)}]);
   };
+
+  function getSensitivity(value: number): Sensitivity {
+    if (value === 1) return Sensitivity.LOW;
+    if (value === 2) return Sensitivity.MEDIUM;
+    if (value === 3) return Sensitivity.HIGH;
+
+    return Sensitivity.LOW;
+  }
 
   function fillName() {
     let targets: { value: string; label: string }[] = form.getFieldValue('targets');
@@ -129,30 +147,30 @@ export default function Index() {
       .then(response => response.json());
   }
 
-  async function fetchRelay(target: string[]) {
-    let relayLink = `http://localhost:8080/v1/metrics/relays?from=${interval.start?.toISOString()}&to=${interval.end?.toISOString()}&countries=${target}`;
+  async function fetchRelay(target: string[], sensitivity: Sensitivity) {
+    let relayLink = `http://localhost:8080/v1/metrics/relays?from=${interval.start?.toISOString()}&to=${interval.end?.toISOString()}&countries=${target}&sensitivity=${sensitivity}`;
     return fetchData(relayLink);
   }
 
-  async function fetchBridge(target: string[]) {
-    let bridgeLink = `http://localhost:8080/v1/metrics/bridges?from=${interval.start?.toISOString()}&to=${interval.end?.toISOString()}&countries=${target}`
+  async function fetchBridge(target: string[], sensitivity: Sensitivity) {
+    let bridgeLink = `http://localhost:8080/v1/metrics/bridges?from=${interval.start?.toISOString()}&to=${interval.end?.toISOString()}&countries=${target}&sensitivity=${sensitivity}`
     return fetchData(bridgeLink);
   }
 
-  async function fetchAll(target: string[]) {
-    let allLink = `http://localhost:8080/v1/metrics/all?from=${interval.start?.toISOString()}&to=${interval.end?.toISOString()}&countries=${target}`
+  async function fetchAll(target: string[], sensitivity: Sensitivity) {
+    let allLink = `http://localhost:8080/v1/metrics/all?from=${interval.start?.toISOString()}&to=${interval.end?.toISOString()}&countries=${target}&sensitivity=${sensitivity}`
     return fetchData(allLink);
   }
 
-  async function fetchTarget(targets: string[]): Promise<Response> {
-    if (type == Type.RELAY) return fetchRelay(targets);
-    if (type == Type.BRIDGE) return fetchBridge(targets);
-    if (type == Type.ALL) return fetchAll(targets);
+  async function fetchTarget(targets: string[], sensitivity: Sensitivity): Promise<Response> {
+    if (type == Type.RELAY) return fetchRelay(targets, sensitivity);
+    if (type == Type.BRIDGE) return fetchBridge(targets, sensitivity);
+    if (type == Type.ALL) return fetchAll(targets, sensitivity);
     return Promise.reject();
   }
 
-  async function getData(targets: string[]): Promise<Response> {
-    return fetchTarget(targets);
+  async function getData(targets: string[], sensitivity: Sensitivity): Promise<Response> {
+    return fetchTarget(targets, sensitivity);
   }
 
   function deleteTarget(idx: number) {
@@ -165,7 +183,7 @@ export default function Index() {
     }}>
       <Layout>
         <Header style={{height: '60pt'}}>
-          <Flex justify="space-between" align="middle">
+          <Flex justify="space-between" align="middle" wrap='wrap-reverse'>
             <Flex justify="center" align="middle" flex={1}>
               <Flex vertical gap={5} align="middle" style={{padding: 5}}>
                 <Flex justify="center" align="middle">                    
@@ -182,12 +200,15 @@ export default function Index() {
               </Flex>
             </Flex>
             <Flex vertical justify="center">
-              <Segmented size="large"
-                value={userTheme} onChange={theme => setUserTheme(theme)} 
-                options={[
-                      { value: Theme.LIGHT, icon: <SunOutlined />, },
-                      { value: Theme.DARK, icon: <MoonOutlined /> },
-              ]}/>
+              <Flex justify="center">
+                <Segmented
+                  value={userTheme} onChange={theme => setUserTheme(theme)} 
+                  options={[
+                        { value: Theme.LIGHT, icon: <SunOutlined />, },
+                        { value: Theme.DARK, icon: <MoonOutlined /> },
+                ]}/>
+              </Flex>
+              {/* <TelegramLoginButton botName="tmadbsc_bot" onAuth={() => console.log("Login successful!")}></TelegramLoginButton> */}
             </Flex>
           </Flex>
         </Header>
@@ -244,6 +265,13 @@ export default function Index() {
             rules={[{ required: true, message: 'Введите название!' }, {min: 3, message: 'Минимум 3 символа!'}]}
             >
               <Input onChange={() => setManuallyChanged(true)}/>
+          </Form.Item>
+
+          <Form.Item<FieldType>
+            label={<span>Чувствительность <Tooltip title="В зависимости от данного значения будет настроено окно анализа"><InfoCircleTwoTone/></Tooltip></span>}
+            name="sensitivity"
+            >
+              <Slider min={1} max={3} marks={marks} tooltipVisible={false}/>
           </Form.Item>
         </Modal>
         </Content>

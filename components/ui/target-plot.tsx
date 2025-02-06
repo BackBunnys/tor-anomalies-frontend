@@ -73,11 +73,14 @@ export default function TargetPlot({stats, anomalies, targetName, onDelete} : an
       [stats],
     )
 
+    const weekdayOrder = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+
 
     const heatConfig = {
         data: groupData(),
-        xField: (value: any) => getISOWeekStart(value.date),
-        yField: (value: any) => new Date(value.date).toLocaleString("ru", { weekday: "short" }),
+        yField: (value: any) => getISOWeekStart(value.date),
+        xField: (value: any) => new Date(value.date).getDay(),
+        sort: {fields: 'date'},
         colorField: 'users',
         legend: {},
         mark: 'cell',
@@ -88,7 +91,7 @@ export default function TargetPlot({stats, anomalies, targetName, onDelete} : an
         },
         animate: null,
         slider: {
-            x: {
+            y: {
                 values: [0.8, 1],
             },
         },
@@ -125,7 +128,7 @@ export default function TargetPlot({stats, anomalies, targetName, onDelete} : an
                     />
                 </Flex>
                 {type == Type.LINE && <Area {...config}/>}
-                {type == Type.HEAT && <Heatmap {...heatConfig} />}
+                {type == Type.HEAT && <Heatmap {...heatConfig} axis={{'x' : {labelFormatter: (value: any) => weekdayOrder[value]}}}/>}
             </Modal>
         </Card>
     );
