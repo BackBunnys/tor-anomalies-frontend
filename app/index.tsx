@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Modal, Form, Input, FormProps, ConfigProvider, Select, Segmented, Flex, DatePicker, theme, Layout, List, FloatButton, Col, Row, Slider, SliderSingleProps, Tooltip } from 'antd'
+import { Modal, Form, Input, FormProps, ConfigProvider, Select, Segmented, Flex, DatePicker, theme, Layout, FloatButton, Col, Row, Slider, SliderSingleProps, Tooltip } from 'antd'
 import { library } from '@fortawesome/fontawesome-svg-core'
 import { faPlus, faEllipsisVertical } from '@fortawesome/free-solid-svg-icons'
 import ru_RU from 'antd/locale/ru_RU'
 import dayjs, { Dayjs } from "dayjs";
 import { Content, Header } from "antd/lib/layout/layout";
-import { InfoCircleOutlined, InfoCircleTwoTone, MoonOutlined, PlusOutlined, SunOutlined } from "@ant-design/icons";
+import { InfoCircleTwoTone, MoonOutlined, PlusOutlined, SunOutlined } from "@ant-design/icons";
 import TargetPlot from "@/components/ui/target-plot";
-import TelegramLoginButton from "@/components/ui/telegram-login-button";
 
 library.add(faPlus, faEllipsisVertical)
 
@@ -45,7 +44,8 @@ class DataRow {
 
 class Target {
   name: string;
-  sensitivity: Sensitivity = Sensitivity.LOW; 
+  sensitivity: Sensitivity = Sensitivity.LOW;
+  algorithm: Algorithm = Algorithm.ZScore; 
   countries: string[]
   data?: DataRow[] = [];
   anomalies?: Anomaly[] = [];
@@ -63,10 +63,20 @@ enum Sensitivity {
   HIGH='HIGH'
 }
 
+enum Algorithm {
+  Quantile='MODEL_ADM_Quantile',
+  GESD='MODEL_ADM_GESD',
+  MBP='MODEL_ADM_2ndDerivationMBP',
+  ManKendall='MODEL_ADM_ManKendall',
+  ThresholdRule='MODEL_ADM_ThresholdRule',
+  ZScore='MODEL_ADM_ZScore'
+}
+
 type FieldType = {
   targets: {value: string, label: string}[];
   name: string;
   sensitivity: number;
+  algorithm: Algorithm;
 };
 
 const marks: SliderSingleProps['marks'] = {
@@ -93,6 +103,7 @@ enum Theme {
 
 
 export default function Index() {
+  const baseUrl = 'http://localhost:8080/v1/metrics';
   const [ targets, setTargets] = useState<Target[]>([])
   const [ isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [ manuallyChanged, setManuallyChanged ] = useState<boolean>(false);
@@ -100,12 +111,19 @@ export default function Index() {
   const [ type, setType ] =  useState<Type>(Type.RELAY);
   const [ interval, setInterval] = useState<Interval>({start: dayjs().add(-1, "year"), end: dayjs()})
   const [ userTheme, setUserTheme ] = useState<Theme>(Theme.LIGHT)
+  const [ algorithms, setAlgorithms ] = useState<string[]>([])
 
   useEffect(() => {
     setTargets(targets.map(target => ({...target, data: undefined})));
-    Promise.all(targets.map(target => (getData(target.countries, target.sensitivity).then(data => ({...target, data: data.metrics, anomalies: data.anomalies})))))
+    Promise.all(targets.map(target => (getData(target.countries, target.sensitivity, target.algorithm).then(data => ({...target, data: data.metrics, anomalies: data.anomalies})))))
       .then(newTargets => setTargets(newTargets));
   }, [type, interval]);
+
+  useEffect(() => {
+    fetch(baseUrl + '/algorithms')
+      .then(response => response.json())
+      .then((data: string[]) => setAlgorithms(data))
+  }, []);
 
   function onAddButtonClick() {
     setIsModalOpen(true);
@@ -119,10 +137,10 @@ export default function Index() {
   const onFinish: FormProps<FieldType>['onFinish'] = async (values) => {
     onModalCancel();
     let countries = values.targets.map(target => target.value);
-    let target: Target = {name: values.name, countries, sensitivity: getSensitivity(values.sensitivity)}
+    let target: Target = {name: values.name, countries, sensitivity: getSensitivity(values.sensitivity), algorithm: values.algorithm}
     setTargets([...targets, target]);
-    let data = await getData(countries, getSensitivity(values.sensitivity));
-    setTargets([...targets.filter(t => t != target), {name: values.name, data: data.metrics, anomalies: data.anomalies, countries, sensitivity: getSensitivity(values.sensitivity)}]);
+    let data = await getData(countries, getSensitivity(values.sensitivity), values.algorithm);
+    setTargets([...targets.filter(t => t != target), {name: values.name, data: data.metrics, anomalies: data.anomalies, countries, sensitivity: getSensitivity(values.sensitivity), algorithm: values.algorithm}]);
   };
 
   function getSensitivity(value: number): Sensitivity {
@@ -147,30 +165,30 @@ export default function Index() {
       .then(response => response.json());
   }
 
-  async function fetchRelay(target: string[], sensitivity: Sensitivity) {
-    let relayLink = `http://localhost:8080/v1/metrics/relays?from=${interval.start?.toISOString()}&to=${interval.end?.toISOString()}&countries=${target}&sensitivity=${sensitivity}`;
+  async function fetchRelay(target: string[], sensitivity: Sensitivity, algorithm: Algorithm) {
+    let relayLink = baseUrl + `/relays?from=${interval.start?.toISOString()}&to=${interval.end?.toISOString()}&countries=${target}&sensitivity=${sensitivity}&algorithm=${algorithm}`;
     return fetchData(relayLink);
   }
 
-  async function fetchBridge(target: string[], sensitivity: Sensitivity) {
-    let bridgeLink = `http://localhost:8080/v1/metrics/bridges?from=${interval.start?.toISOString()}&to=${interval.end?.toISOString()}&countries=${target}&sensitivity=${sensitivity}`
+  async function fetchBridge(target: string[], sensitivity: Sensitivity, algorithm: Algorithm) {
+    let bridgeLink = baseUrl + `/bridges?from=${interval.start?.toISOString()}&to=${interval.end?.toISOString()}&countries=${target}&sensitivity=${sensitivity}&algorithm=${algorithm}`
     return fetchData(bridgeLink);
   }
 
-  async function fetchAll(target: string[], sensitivity: Sensitivity) {
-    let allLink = `http://localhost:8080/v1/metrics/all?from=${interval.start?.toISOString()}&to=${interval.end?.toISOString()}&countries=${target}&sensitivity=${sensitivity}`
+  async function fetchAll(target: string[], sensitivity: Sensitivity, algorithm: Algorithm) {
+    let allLink = baseUrl + `/all?from=${interval.start?.toISOString()}&to=${interval.end?.toISOString()}&countries=${target}&sensitivity=${sensitivity}&algorithm=${algorithm}`
     return fetchData(allLink);
   }
 
-  async function fetchTarget(targets: string[], sensitivity: Sensitivity): Promise<Response> {
-    if (type == Type.RELAY) return fetchRelay(targets, sensitivity);
-    if (type == Type.BRIDGE) return fetchBridge(targets, sensitivity);
-    if (type == Type.ALL) return fetchAll(targets, sensitivity);
+  async function fetchTarget(targets: string[], sensitivity: Sensitivity, algorithm: Algorithm): Promise<Response> {
+    if (type == Type.RELAY) return fetchRelay(targets, sensitivity, algorithm);
+    if (type == Type.BRIDGE) return fetchBridge(targets, sensitivity, algorithm);
+    if (type == Type.ALL) return fetchAll(targets, sensitivity, algorithm);
     return Promise.reject();
   }
 
-  async function getData(targets: string[], sensitivity: Sensitivity): Promise<Response> {
-    return fetchTarget(targets, sensitivity);
+  async function getData(targets: string[], sensitivity: Sensitivity, algorithm: Algorithm): Promise<Response> {
+    return fetchTarget(targets, sensitivity, algorithm);
   }
 
   function deleteTarget(idx: number) {
@@ -266,7 +284,13 @@ export default function Index() {
             >
               <Input onChange={() => setManuallyChanged(true)}/>
           </Form.Item>
-
+          <Form.Item<FieldType>
+            label='Алгоритм'
+            name='algorithm'
+            rules={[{ required: true, message: 'Выберите алгоритм!' }]}
+            >
+              <Select options={algorithms.map(algorithm => ({value: algorithm, label: algorithm}))}/>
+          </Form.Item>
           <Form.Item<FieldType>
             label={<span>Чувствительность <Tooltip title="В зависимости от данного значения будет настроено окно анализа"><InfoCircleTwoTone/></Tooltip></span>}
             name="sensitivity"

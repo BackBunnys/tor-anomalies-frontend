@@ -56,8 +56,8 @@ export default function TargetPlot({stats, anomalies, targetName, onDelete} : an
         theme: t?.algorithm == theme.darkAlgorithm ? 'classicDark' : 'classic'
     };
 
-    const getISOWeekStart = (dateString: string) => {
-        return moment(dateString).startOf("week").format("YYYY-MM-DD")
+    const getISOWeekStart = (date: Date) => {
+        return moment(date).startOf("week").format("YYYY-MM-DD")
     };
 
     const groupData = useCallback(
@@ -68,7 +68,7 @@ export default function TargetPlot({stats, anomalies, targetName, onDelete} : an
             dateCount.set(row.date, (dateCount.get(row.date) ?? 0) + row.users)
         })
 
-        return [...dateCount.entries().map(entry => ({'date': entry[0], 'users': entry[1]}))];
+        return [...dateCount.entries().map(entry => ({'date': new Date(entry[0]), 'users': entry[1]}))];
       },
       [stats],
     )
@@ -78,12 +78,13 @@ export default function TargetPlot({stats, anomalies, targetName, onDelete} : an
 
     const heatConfig = {
         data: groupData(),
-        yField: (value: any) => getISOWeekStart(value.date),
-        xField: (value: any) => new Date(value.date).getDay(),
+        xField: (value: any) => getISOWeekStart(value.date),
+        yField: (value: any) => value.date.getDay(),
         sort: {fields: 'date'},
         colorField: 'users',
         legend: {},
         mark: 'cell',
+        axis: {'y' : {labelFormatter: (value: any) => weekdayOrder[value]}},
         tooltip: {
           title: 'users',
           field: 'users',
@@ -91,9 +92,12 @@ export default function TargetPlot({stats, anomalies, targetName, onDelete} : an
         },
         animate: null,
         slider: {
-            y: {
+            x: {
                 values: [0.8, 1],
             },
+        },
+        scale: {
+            color: { range: ["yellow", "red"] },
         },
         sizeField: "country",
         theme: t?.algorithm == theme.darkAlgorithm ? 'classicDark' : 'classic'
@@ -128,7 +132,7 @@ export default function TargetPlot({stats, anomalies, targetName, onDelete} : an
                     />
                 </Flex>
                 {type == Type.LINE && <Area {...config}/>}
-                {type == Type.HEAT && <Heatmap {...heatConfig} axis={{'x' : {labelFormatter: (value: any) => weekdayOrder[value]}}}/>}
+                {type == Type.HEAT && <Heatmap {...heatConfig} />}
             </Modal>
         </Card>
     );
